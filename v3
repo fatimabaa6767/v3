@@ -1,0 +1,389 @@
+-- FATIMABOWSMACRO V2
+-- Transparent Purple Panel
+-- Inventory:
+-- 1 RPG | 2 Loverboard | 3 Taser
+-- 4-7 Weapon Combo | 8 Gold Snow
+-- 9 Blue Snow | 0 Brass
+--
+-- D-Pad Right = Loverboard activation
+-- D-Pad Left = Brass
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+
+local Player = Players.LocalPlayer
+local Enabled = true
+local Busy = false
+local AutoRPG = false
+local AimLock = false
+local Speed = 2
+
+local AUTO_RPG_DELAY = 0.8
+local SNOW_DELAY = 0.09
+
+local function pressKey(key)
+    VIM:SendKeyEvent(true, key, false, game)
+    task.wait(0.03)
+    VIM:SendKeyEvent(false, key, false, game)
+end
+
+local function tapCenter()
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+
+    local size = camera.ViewportSize
+    local x, y = size.X / 2, size.Y / 2
+
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local slotKeys = {
+    [0] = Enum.KeyCode.Zero,
+    [1] = Enum.KeyCode.One,
+    [2] = Enum.KeyCode.Two,
+    [3] = Enum.KeyCode.Three,
+    [4] = Enum.KeyCode.Four,
+    [5] = Enum.KeyCode.Five,
+    [6] = Enum.KeyCode.Six,
+    [7] = Enum.KeyCode.Seven,
+    [8] = Enum.KeyCode.Eight,
+    [9] = Enum.KeyCode.Nine
+}
+
+local function equip(slot)
+    local key = slotKeys[slot]
+    if key then
+        pressKey(key)
+    end
+end
+
+local function returnToBoard()
+    equip(2)
+    task.wait(0.15)
+    pressKey(Enum.KeyCode.DPadRight)
+end
+
+local function runMacro(callback)
+    if not Enabled or Busy then return end
+    Busy = true
+
+    task.spawn(function()
+        local ok, err = pcall(callback)
+        if not ok then
+            warn("[FatimaBowsMacro] " .. tostring(err))
+        end
+        Busy = false
+    end)
+end
+
+-- REGULAR MACROS
+
+local function RPGMacro()
+    equip(1)
+    tapCenter()
+    task.wait(0.1)
+    returnToBoard()
+end
+
+local function TaserMacro()
+    equip(3)
+    tapCenter()
+    task.wait(0.1)
+    returnToBoard()
+end
+
+local function SnowMacro()
+    equip(8)
+    tapCenter()
+    task.wait(SNOW_DELAY)
+
+    equip(9)
+    tapCenter()
+    task.wait(SNOW_DELAY)
+
+    returnToBoard()
+end
+
+local function WeaponMacro()
+    for slot = 4, 7 do
+        equip(slot)
+        tapCenter()
+        task.wait(0.05 / Speed)
+    end
+
+    returnToBoard()
+end
+
+local function BoardMacro()
+    returnToBoard()
+end
+
+local function BrassMacro()
+    equip(0)
+end
+
+local function ReloadMacro()
+    pressKey(Enum.KeyCode.X)
+end
+
+-- AUTO RPG
+local function startAutoRPG()
+    if AutoRPG then return end
+    AutoRPG = true
+
+    task.spawn(function()
+        while AutoRPG and Enabled do
+            if not Busy then
+                Busy = true
+
+                local ok, err = pcall(function()
+                    equip(1)
+                    tapCenter()
+                    task.wait(0.15)
+                    returnToBoard()
+                end)
+
+                if not ok then
+                    warn(err)
+                end
+
+                Busy = false
+            end
+
+            task.wait(AUTO_RPG_DELAY)
+        end
+    end)
+end
+
+local function stopAutoRPG()
+    AutoRPG = false
+end
+
+-- GUI
+
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local old = PlayerGui:FindFirstChild("FatimaBowsMacro")
+if old then old:Destroy() end
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "FatimaBowsMacro"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.Parent = PlayerGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(290, 440)
+Main.Position = UDim2.new(0.5, -145, 0.5, -220)
+Main.BackgroundColor3 = Color3.fromRGB(215, 175, 255)
+Main.BackgroundTransparency = 0.35
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = Main
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 225, 255)
+stroke.Thickness = 1.5
+stroke.Parent = Main
+
+local function makeButton(text, x, y, w, h)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(w, h)
+    b.Position = UDim2.fromOffset(x, y)
+    b.BackgroundColor3 = Color3.fromRGB(245, 220, 255)
+    b.BackgroundTransparency = 0.2
+    b.TextColor3 = Color3.fromRGB(70, 35, 90)
+    b.Text = text
+    b.TextSize = 12
+    b.Font = Enum.Font.GothamSemibold
+    b.BorderSizePixel = 0
+    b.Parent = Main
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 9)
+    c.Parent = b
+
+    return b
+end
+
+local Header = Instance.new("TextLabel")
+Header.Size = UDim2.new(1, -50, 0, 38)
+Header.Position = UDim2.fromOffset(12, 5)
+Header.BackgroundTransparency = 1
+Header.Text = "♡ FatimaBowsMacro V2 ♡"
+Header.TextColor3 = Color3.fromRGB(75, 35, 100)
+Header.TextSize = 15
+Header.Font = Enum.Font.GothamBold
+Header.Parent = Main
+
+local Close = makeButton("X", 250, 7, 30, 27)
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 23)
+Status.Position = UDim2.fromOffset(10, 42)
+Status.BackgroundTransparency = 1
+Status.Text = "Status: ENABLED"
+Status.TextColor3 = Color3.fromRGB(75, 35, 100)
+Status.TextSize = 12
+Status.Parent = Main
+
+local RPG = makeButton("RPG • LB", 12, 75, 128, 36)
+local Taser = makeButton("Taser • RB", 150, 75, 128, 36)
+local Snow = makeButton("Gold → Blue Snow", 12, 118, 266, 36)
+local Combo = makeButton("Weapon Combo • L3", 12, 161, 266, 36)
+local Board = makeButton("Loverboard • D-Pad Right", 12, 204, 266, 36)
+local Brass = makeButton("Brass • D-Pad Left", 12, 247, 266, 36)
+local Reload = makeButton("Reload • X", 12, 290, 266, 32)
+
+local AutoButton = makeButton("AUTO RPG: OFF", 12, 330, 266, 34)
+local AimButton = makeButton("AIM LOCK: OFF (Placeholder)", 12, 370, 266, 34)
+local Toggle = makeButton("Disable Macro", 12, 410, 266, 25)
+
+local Reopen = makeButton("♡", 20, 300, 45, 42)
+Reopen.Visible = false
+
+RPG.MouseButton1Click:Connect(function()
+    runMacro(RPGMacro)
+end)
+
+Taser.MouseButton1Click:Connect(function()
+    runMacro(TaserMacro)
+end)
+
+Snow.MouseButton1Click:Connect(function()
+    runMacro(SnowMacro)
+end)
+
+Combo.MouseButton1Click:Connect(function()
+    runMacro(WeaponMacro)
+end)
+
+Board.MouseButton1Click:Connect(function()
+    runMacro(BoardMacro)
+end)
+
+Brass.MouseButton1Click:Connect(function()
+    runMacro(BrassMacro)
+end)
+
+Reload.MouseButton1Click:Connect(function()
+    if Enabled and not Busy then
+        ReloadMacro()
+    end
+end)
+
+AutoButton.MouseButton1Click:Connect(function()
+    if not Enabled then return end
+
+    if AutoRPG then
+        stopAutoRPG()
+        AutoButton.Text = "AUTO RPG: OFF"
+    else
+        startAutoRPG()
+        AutoButton.Text = "AUTO RPG: ON"
+    end
+end)
+
+AimButton.MouseButton1Click:Connect(function()
+    AimLock = not AimLock
+    AimButton.Text = AimLock
+        and "AIM LOCK: ON (Placeholder)"
+        or "AIM LOCK: OFF (Placeholder)"
+end)
+
+Toggle.MouseButton1Click:Connect(function()
+    Enabled = not Enabled
+
+    if not Enabled then
+        stopAutoRPG()
+    end
+
+    Status.Text = Enabled
+        and "Status: ENABLED"
+        or "Status: DISABLED"
+
+    Toggle.Text = Enabled
+        and "Disable Macro"
+        or "Enable Macro"
+
+    if not Enabled then
+        AutoButton.Text = "AUTO RPG: OFF"
+    end
+end)
+
+Close.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    Reopen.Visible = true
+end)
+
+Reopen.MouseButton1Click:Connect(function()
+    Main.Visible = true
+    Reopen.Visible = false
+end)
+
+-- DRAG PANEL
+
+local dragging = false
+local dragStart
+local startPosition
+
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPosition = Main.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- CONTROLLER SHORTCUTS
+
+local shortcuts = {
+    [Enum.KeyCode.ButtonL1] = RPGMacro,
+    [Enum.KeyCode.ButtonR1] = TaserMacro,
+    [Enum.KeyCode.ButtonY] = SnowMacro,
+    [Enum.KeyCode.ButtonL3] = WeaponMacro,
+    [Enum.KeyCode.DPadRight] = BoardMacro,
+    [Enum.KeyCode.DPadLeft] = BrassMacro
+}
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not Enabled then return end
+
+    local callback = shortcuts[input.KeyCode]
+
+    if callback then
+        runMacro(callback)
+    elseif input.KeyCode == Enum.KeyCode.X
+    or input.KeyCode == Enum.KeyCode.ButtonX then
+        if not Busy then ReloadMacro() end
+    end
+end)
+
+print("♡ FATIMABOWSMACRO V2 loaded!")
